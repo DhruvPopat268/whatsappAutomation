@@ -31,8 +31,7 @@ app.post("/shopify/order-webhook", async (req, res) => {
     const orderTotal = order.total_price;
     console.log("💰 Order Total:", orderTotal, order.currency);
 
-    // Phone priority: shipping address > customer object > top-level phone
-    // Phone priority: prefer top-level (already E.164 formatted) > customer > shipping
+    // Phone priority
     let phoneNumber =
       order.phone ||
       order.customer?.phone ||
@@ -41,11 +40,10 @@ app.post("/shopify/order-webhook", async (req, res) => {
     console.log("📞 Raw Phone from Shopify:", phoneNumber);
 
     let cleanedNumber = phoneNumber.replace(/\D/g, "");
-    if (cleanedNumber.startsWith("91") === false && cleanedNumber.length === 10) {
+    if (!cleanedNumber.startsWith("91") && cleanedNumber.length === 10) {
       cleanedNumber = "91" + cleanedNumber;
     }
     console.log("📞 Cleaned Phone (used in API):", cleanedNumber);
-
 
     // Save mapping for reply
     orderMapping[cleanedNumber] = orderNumber;
@@ -56,8 +54,8 @@ app.post("/shopify/order-webhook", async (req, res) => {
       to: cleanedNumber,
       type: "template",
       template: {
-        name: "default_order_confirmation_v1", // must match exactly
-        language: { code: "en_US" },           // not "en", must use en_US
+        name: "default_order_confirmation_v1",
+        language: { code: "en_US" },
         components: [
           {
             type: "body",
@@ -73,7 +71,7 @@ app.post("/shopify/order-webhook", async (req, res) => {
             sub_type: "url",
             index: "0",
             parameters: [
-              { type: "text", text: order.id.toString() } // fills {{1}} in button URL
+              { type: "text", text: order.id.toString() }
             ]
           }
         ]
@@ -88,6 +86,27 @@ app.post("/shopify/order-webhook", async (req, res) => {
     });
 
     console.log("✅ WhatsApp API Response:", response.data);
+
+    const messageId = response.data.messages?.[0]?.id;
+    if (messageId) {
+      console.log(`📩 Message ID: ${messageId}`);
+
+      // Poll for message status after a short delay
+      setTimeout(async () => {
+        try {
+          const statusResp = await axios.get(
+            `https://graph.facebook.com/v17.0/${messageId}`,
+            { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
+          );
+          console.log("📊 Message Status Check:", JSON.stringify(statusResp.data, null, 2));
+        } catch (statusErr) {
+          console.error("⚠️ Error fetching message status:", statusErr.response?.data || statusErr.message);
+        }
+      }, 4000); // wait 4s before first check
+    } else {
+      console.warn("⚠️ No messageId returned from WhatsApp API!");
+    }
+
     console.log(`✅ WhatsApp message sent to ${cleanedNumber} for order ${orderNumber}`);
     res.sendStatus(200);
 
@@ -96,6 +115,9 @@ app.post("/shopify/order-webhook", async (req, res) => {
     res.sendStatus(500);
   }
 });
+
+
+
 
 
 
