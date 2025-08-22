@@ -46,18 +46,27 @@ app.post("/shopify/order-webhook", async (req, res) => {
       WHATSAPP_API_URL,
       {
         messaging_product: "whatsapp",
-        to: phoneNumber.replace(/\D/g, ""), // remove + or spaces
+        to: phoneNumber.replace(/\D/g, ""), // clean number
         type: "template",
         template: {
-          name: "order_confirmation", // must match approved template in WhatsApp
-          language: { code: "en" },
+          name: "default_order_confirmation_v1",  // must match exactly
+          language: { code: "en_US" },            // not "en", must use en_US
           components: [
             {
               type: "body",
               parameters: [
-                { type: "text", text: customerName },
-                { type: "text", text: String(orderNumber) },
-                { type: "text", text: `${orderTotal} ${order.currency}` }
+                { type: "text", text: customerName },               // {{1}}
+                { type: "text", text: `${orderTotal} ${order.currency}` }, // {{2}}
+                { type: "text", text: order.shopify_domain || "My Store" }, // {{3}}
+                { type: "text", text: `#${order.order_number}` }    // {{4}}
+              ]
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [
+                { type: "text", text: order.id.toString() } // fills {{1}} in button URL
               ]
             }
           ]
@@ -65,6 +74,7 @@ app.post("/shopify/order-webhook", async (req, res) => {
       },
       { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
     );
+
 
     console.log(`✅ WhatsApp message sent to ${phoneNumber} for order ${orderNumber}`);
     res.sendStatus(200);
