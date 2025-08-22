@@ -7,7 +7,7 @@ app.use(bodyParser.json());
 
 // WhatsApp API Config
 const WHATSAPP_API_URL = "https://graph.facebook.com/v17.0/753154937875519/messages";
-const WHATSAPP_TOKEN = "EAASmeM3lbz4BPHx1YlGjGxgWUp4f4ZC4bUjECgtf0d8488wYDGxp3Rs5FgHEb3sVpdAB31Q5amlT20Jf57EQLVmP14nKPt837G8VXp1kw22NZB2q8Ikf0ZBCal8BIPZBMzWvp2iyu4wOCKEh35ZBXndKLLHrADOKJQLO42D2mFN4bfQ9edG5TH9jVeMWJYWu3Aq8ZAm2YAOTW4ZCAQlWJIfwuZAOuuNMqE4IS5DTgCuFZB1hD5QZDZD";
+const WHATSAPP_TOKEN = "EAASmeM3lbz4BPNNA4UOCkIzjjz1R9evldbSV4WObuErONqauHdFUi7XiuHGXmCZCkz9FZClzDavT9Be7QqYdaUPGu7k2Q8ABkpakZC7ePK4XaKZCGM6HZAybfxE28TUxjC65Vd2VSSJkqwEq8W9MaglMXNjJSwcMGi3fp2RrZCe9aUAcUJ1sQZCdovReDKaMBCEYZCAEDxQnbZB0cxChxY1ksVVeq1XUUok9SCifRiuYYrieKcAZDZD";
 
 // Temp DB (use Mongo/Redis in production)
 const orderMapping = {}; // { phone: orderId }
@@ -48,13 +48,13 @@ app.post("/shopify/order-webhook", async (req, res) => {
     // Save mapping for reply
     orderMapping[cleanedNumber] = orderNumber;
 
-    // Prepare payload
+    // Prepare payload with your new template
     const payload = {
       messaging_product: "whatsapp",
       to: cleanedNumber,
       type: "template",
       template: {
-        name: "default_order_confirmation_v1",
+        name: "cod_order_confirmation", // <-- your template name
         language: { code: "en_US" },
         components: [
           {
@@ -62,16 +62,7 @@ app.post("/shopify/order-webhook", async (req, res) => {
             parameters: [
               { type: "text", text: customerName },                       // {{1}}
               { type: "text", text: `${orderTotal} ${order.currency}` },  // {{2}}
-              { type: "text", text: order.shopify_domain || "My Store" }, // {{3}}
-              { type: "text", text: `#${order.order_number}` }            // {{4}}
-            ]
-          },
-          {
-            type: "button",
-            sub_type: "url",
-            index: "0",
-            parameters: [
-              { type: "text", text: order.id.toString() }
+              { type: "text", text: order.shopify_domain || "My Store" }  // {{3}}
             ]
           }
         ]
@@ -115,10 +106,5 @@ app.post("/shopify/order-webhook", async (req, res) => {
     res.sendStatus(500);
   }
 });
-
-
-
-
-
 
 app.listen(4000, () => console.log("🚀 Server running on port 4000"));
