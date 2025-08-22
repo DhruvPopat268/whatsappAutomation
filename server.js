@@ -32,24 +32,20 @@ app.post("/shopify/order-webhook", async (req, res) => {
     console.log("💰 Order Total:", orderTotal, order.currency);
 
     // Phone priority: shipping address > customer object > top-level phone
+    // Phone priority: prefer top-level (already E.164 formatted) > customer > shipping
     let phoneNumber =
-      order.shipping_address?.phone ||
+      order.phone ||
       order.customer?.phone ||
-      order.phone;
-
-    if (!phoneNumber) {
-      console.log("❌ No phone number found for order", orderNumber);
-      return res.sendStatus(200);
-    }
+      order.shipping_address?.phone;
 
     console.log("📞 Raw Phone from Shopify:", phoneNumber);
 
-    // Clean and normalize phone
     let cleanedNumber = phoneNumber.replace(/\D/g, "");
-    if (cleanedNumber.length === 10) {
-      cleanedNumber = "91" + cleanedNumber; // default India code
+    if (cleanedNumber.startsWith("91") === false && cleanedNumber.length === 10) {
+      cleanedNumber = "91" + cleanedNumber;
     }
     console.log("📞 Cleaned Phone (used in API):", cleanedNumber);
+
 
     // Save mapping for reply
     orderMapping[cleanedNumber] = orderNumber;
