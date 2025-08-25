@@ -27,16 +27,22 @@ app.post("/shopify/order-webhook", async (req, res) => {
       "Customer";
 
     const orderNumber = order.order_number || order.id;
+    const totalItems = order.line_items?.length || 0;
     const orderTotal = order.total_price;
 
     let phoneNumber = order.phone || order.customer?.phone || order.shipping_address?.phone;
+    if (!phoneNumber) {
+      console.error("❌ No phone number found for this order.");
+      return res.sendStatus(400);
+    }
+
     let cleanedNumber = phoneNumber.replace(/\D/g, "");
     if (!cleanedNumber.startsWith("91") && cleanedNumber.length === 10) {
       cleanedNumber = "91" + cleanedNumber;
     }
 
-    // Save mapping for reply
-    orderMapping[cleanedNumber] = order.id; // store real order.id
+    // Save mapping for reply (Accept/Reject later)
+    orderMapping[cleanedNumber] = order.id;
 
     // WhatsApp message payload
     const payload = {
@@ -44,15 +50,16 @@ app.post("/shopify/order-webhook", async (req, res) => {
       to: cleanedNumber,
       type: "template",
       template: {
-        name: "cod_order_confirmation",
-        language: { code: "en_US" },
+        name: "cod_order_confirmation_v1",   // ✅ updated template name
+        language: { code: "en" },            // ✅ use "en" instead of "en_US" (as per your screenshot)
         components: [
           {
             type: "body",
             parameters: [
-              { type: "text", text: customerName },
-              { type: "text", text: `${orderTotal} ${order.currency}` },
-              { type: "text", text: SHOPIFY_STORE }
+              { type: "text", text: customerName },       // {{1}}
+              { type: "text", text: String(orderNumber) },// {{2}}
+              { type: "text", text: String(totalItems) }, // {{3}}
+              { type: "text", text: `${orderTotal} ${order.currency}` } // {{4}}
             ]
           }
         ]
