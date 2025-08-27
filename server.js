@@ -175,56 +175,57 @@ app.post("/whatsapp/order-response", async (req, res) => {
   try {
     console.log("📩 Incoming request body:", req.body);
 
-    const { button, order_id } = req.body;
+    const data = req.body;
 
-    if (!button || !order_id) {
-      console.warn("⚠️ Missing required fields:", { button, order_id });
-      return res.status(400).json({ error: "Missing button or order_id" });
-    }
+    console.log(data)
 
-    // Decide tag
-    let tag = "";
-    if (button === "accept_order") tag = "Order Accepted";
-    if (button === "reject_order") tag = "Order Rejected";
+    // if (!button || !order_id) {
+    //   console.warn("⚠️ Missing required fields:", { button, order_id });
+    //   return res.status(400).json({ error: "Missing button or order_id" });
+    // }
 
-    if (!tag) {
-      console.warn("⚠️ Invalid button value received:", button);
-      return res.status(400).json({ error: "Invalid button value" });
-    }
+    // // Decide tag
+    // let tag = "";
+    // if (button === "accept_order") tag = "Order Accepted";
+    // if (button === "reject_order") tag = "Order Rejected";
 
-    console.log(`✅ Button received: ${button}, Mapped tag: ${tag}`);
+    // if (!tag) {
+    //   console.warn("⚠️ Invalid button value received:", button);
+    //   return res.status(400).json({ error: "Invalid button value" });
+    // }
 
-    // Shopify API URL
-    const shopifyUrl = `https://${SHOPIFY_STORE}/admin/api/2025-01/orders/${order_id}.json`;
-    console.log("🔗 Shopify API URL:", shopifyUrl);
+    // console.log(`✅ Button received: ${button}, Mapped tag: ${tag}`);
 
-    // Call Shopify API
-    console.log("📤 Sending request to Shopify with payload:", {
-      order: { id: Number(order_id), tags: tag },
-    });
+    // // Shopify API URL
+    // const shopifyUrl = `https://${SHOPIFY_STORE}/admin/api/2025-01/orders/${order_id}.json`;
+    // console.log("🔗 Shopify API URL:", shopifyUrl);
 
-    const response = await axios.put(
-      shopifyUrl,
-      {
-        order: {
-          id: Number(order_id),
-          tags: tag,
-        },
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
-        },
-      }
-    );
+    // // Call Shopify API
+    // console.log("📤 Sending request to Shopify with payload:", {
+    //   order: { id: Number(order_id), tags: tag },
+    // });
 
-    console.log("✅ Shopify API response:", response.data);
+    // const response = await axios.put(
+    //   shopifyUrl,
+    //   {
+    //     order: {
+    //       id: Number(order_id),
+    //       tags: tag,
+    //     },
+    //   },
+    //   {
+    //     headers: {
+    //       "Content-Type": "application/json",
+    //       "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+    //     },
+    //   }
+    // );
+
+    // console.log("✅ Shopify API response:", response.data);
 
     res.json({
       success: true,
-      button,
-      shopify_response: response.data,
+      data
     });
   } catch (error) {
     console.error("❌ Error updating order:", error.response?.data || error.message);
@@ -234,6 +235,5 @@ app.post("/whatsapp/order-response", async (req, res) => {
     });
   }
 });
-
 
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
