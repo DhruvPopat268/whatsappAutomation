@@ -105,57 +105,6 @@ app.post("/shopify/order-webhook", async (req, res) => {
   }
 });
 
-// // Cancel Shopify order
-// const cancelShopifyOrder = async (orderId) => {
-//   const url = `https://${SHOPIFY_STORE}/admin/api/2025-01/orders/${orderId}/cancel.json`;
-
-//   const response = await axios.post(url, {}, {
-//     headers: {
-//       "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
-//       "Content-Type": "application/json",
-//     },
-//   });
-
-//   return response.data;
-// };
-
-// // WhatsApp webhook handler (Button Clicks)
-// app.post("/whatsapp-webhook", async (req, res) => {
-//   try {
-//     const change = req.body?.entry?.[0]?.changes?.[0]?.value;
-//     const message = change?.messages?.[0];
-
-//     if (!message || message.type !== "button") {
-//       return res.status(200).json({ message: "No button click found" });
-//     }
-
-//     const userNumber = message.from;
-//     const buttonText = message.button?.text;
-//     const orderId = orderMapping[userNumber];
-
-//     if (!orderId) {
-//       return res.status(400).json({ error: "Order mapping not found" });
-//     }
-
-//     if (buttonText === "Reject Order") {
-//       const result = await cancelShopifyOrder(orderId);
-//       return res.status(200).json({
-//         success: true,
-//         message: `Order ${orderId} cancelled successfully`,
-//         data: result,
-//       });
-//     }
-
-//     return res.status(200).json({
-//       success: true,
-//       message: `Order ${orderId} confirmed (no action needed)`,
-//     });
-//   } catch (error) {
-//     console.error("❌ Webhook error:", error.message);
-//     res.status(500).json({ success: false, error: error.message });
-//   }
-// });
-
 app.post("/shopify/shipment-webhook", async (req, res) => {
   try {
     const fulfillment = req.body;
@@ -221,5 +170,70 @@ app.post("/shopify/shipment-webhook", async (req, res) => {
     res.status(500).send("Error processing webhook");
   }
 });
+
+app.post("/whatsapp/order-response", async (req, res) => {
+  try {
+    console.log("📩 Incoming request body:", req.body);
+
+    const { button, order_id } = req.body;
+
+    if (!button || !order_id) {
+      console.warn("⚠️ Missing required fields:", { button, order_id });
+      return res.status(400).json({ error: "Missing button or order_id" });
+    }
+
+    // Decide tag
+    let tag = "";
+    if (button === "accept_order") tag = "Order Accepted";
+    if (button === "reject_order") tag = "Order Rejected";
+
+    if (!tag) {
+      console.warn("⚠️ Invalid button value received:", button);
+      return res.status(400).json({ error: "Invalid button value" });
+    }
+
+    console.log(`✅ Button received: ${button}, Mapped tag: ${tag}`);
+
+    // Shopify API URL
+    const shopifyUrl = `https://${SHOPIFY_STORE}/admin/api/2025-01/orders/${order_id}.json`;
+    console.log("🔗 Shopify API URL:", shopifyUrl);
+
+    // Call Shopify API
+    console.log("📤 Sending request to Shopify with payload:", {
+      order: { id: Number(order_id), tags: tag },
+    });
+
+    const response = await axios.put(
+      shopifyUrl,
+      {
+        order: {
+          id: Number(order_id),
+          tags: tag,
+        },
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+        },
+      }
+    );
+
+    console.log("✅ Shopify API response:", response.data);
+
+    res.json({
+      success: true,
+      button,
+      shopify_response: response.data,
+    });
+  } catch (error) {
+    console.error("❌ Error updating order:", error.response?.data || error.message);
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
 
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
