@@ -175,63 +175,85 @@ app.post("/whatsapp/order-response", async (req, res) => {
   try {
     console.log("📩 Incoming request body:", req.body);
 
-    const data = req.body;
+    const { messages } = req.body;
 
-    console.log(data)
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: "No messages found in request body" });
+    }
 
-    // if (!button || !order_id) {
-    //   console.warn("⚠️ Missing required fields:", { button, order_id });
-    //   return res.status(400).json({ error: "Missing button or order_id" });
-    // }
+    // Store results of Shopify API calls
+    const results = [];
 
-    // // Decide tag
-    // let tag = "";
-    // if (button === "accept_order") tag = "Order Accepted";
-    // if (button === "reject_order") tag = "Order Rejected";
+    for (const msg of messages) {
+      const { text, order_id } = msg;
 
-    // if (!tag) {
-    //   console.warn("⚠️ Invalid button value received:", button);
-    //   return res.status(400).json({ error: "Invalid button value" });
-    // }
+      if (!text || !order_id) {
+        console.warn("⚠️ Skipping invalid message:", msg);
+        continue;
+      }
 
-    // console.log(`✅ Button received: ${button}, Mapped tag: ${tag}`);
+      // Map text → tag
+      let tag = "";
+      if (text.toLowerCase().includes("accept")) tag = "Order Accepted";
+      if (text.toLowerCase().includes("reject")) tag = "Order Rejected";
 
-    // // Shopify API URL
-    // const shopifyUrl = `https://${SHOPIFY_STORE}/admin/api/2025-01/orders/${order_id}.json`;
-    // console.log("🔗 Shopify API URL:", shopifyUrl);
+      if (!tag) {
+        console.warn("⚠️ Invalid text value received:", text);
+        continue;
+      }
 
-    // // Call Shopify API
-    // console.log("📤 Sending request to Shopify with payload:", {
-    //   order: { id: Number(order_id), tags: tag },
-    // });
+      console.log(`✅ Processing order ${order_id} → Tag: ${tag}`);
 
-    // const response = await axios.put(
-    //   shopifyUrl,
-    //   {
-    //     order: {
-    //       id: Number(order_id),
-    //       tags: tag,
-    //     },
-    //   },
-    //   {
-    //     headers: {
-    //       "Content-Type": "application/json",
-    //       "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
-    //     },
-    //   }
-    // );
+      // Shopify API URL
+      const shopifyUrl = `https://${SHOPIFY_STORE}/admin/api/2025-01/orders/${order_id}.json`;
+      console.log("🔗 Shopify API URL:", shopifyUrl);
 
-    // console.log("✅ Shopify API response:", response.data);
+      try {
+        const response = await axios.put(
+          shopifyUrl,
+          {
+            order: {
+              id: Number(order_id),
+              tags: tag,
+            },
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+            },
+          }
+        );
 
-    res.json({
+        console.log("✅ Shopify API response:", response.data);
+
+        results.push({
+          order_id,
+          tag,
+          success: true,
+          response: response.data,
+        });
+      } catch (err) {
+        console.error(`❌ Error updating order ${order_id}:`, err.response?.data || err.message);
+        results.push({
+          order_id,
+          tag,
+          success: false,
+          error: err.response?.data || err.message,
+        });
+      }
+    }
+
+    return res.json({
       success: true,
-      data
+      processed: results.length,
+      results,
     });
   } catch (error) {
-    console.error("❌ Error updating order:", error.response?.data || error.message);
+    console.error("❌ Error in /whatsapp/order-response:", error);
     res.status(500).json({
       success: false,
-      error: error.response?.data || error.message,
+      error: error.message,
     });
   }
 });
