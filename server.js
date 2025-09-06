@@ -81,23 +81,29 @@ const orderMapping = {}; // { phone: orderId }
 
 app.post("/shopify/order-webhook", async (req, res) => {
   try {
-    console.log(SWIFTCHAT_API_TOKEN)
+    console.log(SWIFTCHAT_API_TOKEN);
     const order = req.body;
     console.log("📦 Incoming Shopify order payload:", JSON.stringify(order, null, 2));
 
-    // Forward Shopify order data to WhatsApp API
-    const response = await axios.post(
-      "https://whatsapp1.prayoshatechnology.com/api/send/template",
-      order,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${SWIFTCHAT_API_TOKEN}`, // ✅ use env variable for security
-        },
-      }
-    );
+    // ✅ Check if payment method is Cash on Delivery (COD)
+    if (order.payment_gateway_names?.includes("Cash on Delivery (COD)")) {
+      // Forward Shopify order data to WhatsApp API
+      const response = await axios.post(
+        "https://whatsapp1.prayoshatechnology.com/api/send/template",
+        order,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SWIFTCHAT_API_TOKEN}`, // ✅ use env variable for security
+          },
+        }
+      );
 
-    console.log("✅ Forwarded to WhatsApp API:", response.data);
+      console.log("✅ Forwarded to WhatsApp API:", response.data);
+    } else {
+      console.log("⏩ Skipped forwarding, payment is not COD");
+    }
+
     res.sendStatus(200);
   } catch (err) {
     console.error("❌ Error forwarding to WhatsApp API:", err.response?.data || err.message);
