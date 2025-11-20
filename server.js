@@ -89,7 +89,7 @@ app.post("/shopify/order-webhook", async (req, res) => {
     if (order.payment_gateway_names?.includes("Cash on Delivery (COD)")) {
       // Forward Shopify order data to WhatsApp API
       const response = await axios.post(
-        "https://whatsapp1.prayoshatechnology.com/api/send/template",
+        "https://whatsapp.fingertipitsolutions.com/api/send/template",
         order,
         {
           headers: {
